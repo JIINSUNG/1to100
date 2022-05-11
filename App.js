@@ -1,10 +1,13 @@
 import { StatusBar } from 'expo-status-bar';
-import {Platform, KeyboardAvoidingView, SafeAreaView,TextInput,StyleSheet, Text,ScrollView, View, TouchableOpacity, Button, Alert,  } from 'react-native';
+import {Platform, KeyboardAvoidingView, SafeAreaView,TextInput,StyleSheet, Text,Image,ScrollView, View, TouchableOpacity, Button, Alert,  } from 'react-native';
 import MyComponents from './MyComponent';
 import {React,useState} from 'react';
 import MyProfile from './MyProfile';
 import Menu from './Menu';
 import Questionbar from './Questionbar';
+import { getDownloadURL, getStorage,ref, uploadBytes } from "firebase/storage";
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 
 
 // Import the functions you need from the SDKs you need
@@ -24,95 +27,95 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const firebaseApp = initializeApp(firebaseConfig);
+const storage = getStorage(firebaseApp);
+
 import { getAuth, createUserWithEmailAndPassword,signInWithEmailAndPassword  } from "firebase/auth";
+const userid = "29381919123"
+
 
 const auth = getAuth();
-
-
+// Create a storage reference from our storage service
+const storageRef = ref(storage);
+// Create a child reference
+const profileRef = ref(storage, 'userprofile/')
+const imagesref = ref(profileRef, userid);
+// imagesRef now points to 'images'
 
 
 export default function App() {
-
-  const [islogin,setisLogin] = useState(true);
-  const [email, setEmail] = useState("");
-  const [password,setPassword] = useState("");
-  
-  const Login = ()=> {
-    signInWithEmailAndPassword(auth, email, password)
-  .then((userCredential) => {
-    // Signed in
-    const user = userCredential.user;
-    // ...
-    Alert.alert(user.email + "님 로그인 되었습니다");
-  })
-  .catch((error) => {
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    Alert.alert(errorMessage);
-  });
-  }
-
-  const Submit = ()=>{
-    createUserWithEmailAndPassword(auth, email, password)
-    .then((userCredential) => {
-      // Signed in
-      const user = userCredential.user;
-      // ...
-    })
-    .catch((error) => {
-      const errorCode = error.code;
-      const errorMessage = error.message;
-      Alert.alert(errorMessage);
-
-      // ..
-    });
-
+  const [image, setImage] = useState(null);
+  const [uri,setUri] = useState();
+  const [imgtrue, setImgtrue] = useState(false);
+  const [location, setLocation] = useState();
+  const [ok, setOkay] = useState(true);
+  const [city,setCity] = useState("미상");
+  const getPosition = async() => {
+    const granted = await Location.requestForegroundPermissionsAsync();
+    if(!granted)
+    {
+      setOk(false);
     }
-  
+ 
+    const {coords:{latitude,longitude}} = await Location.getCurrentPositionAsync({accuracy:5});
+    const location = await Location.reverseGeocodeAsync({latitude,longitude});
+    setCity(location[0].city);
+  }
+ 
 
 
+
+  const pickImage = async () => {
+    // No permissions request is necessary for launching the image library
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.2,
+    });
+    if (!result.cancelled) {
+      setImage(result.uri);
+
+      const img = await fetch(result.uri);
+      const bytes = await img.blob();
+      uploadBytes(imagesref, bytes).then(imageupload => {console.log("image uploaded")});
+
+
+      
+    }
+  };
+
+  const getImage = async() => {
+    const reference = ref(storage,'/userprofile/'+ userid);
+      await getDownloadURL(reference).then((x)=>{
+        setUri(x);
+      })
+      setImgtrue(true);
+  }
+ 
   return (
-    islogin ? 
-    
     <View style = {styles.container}>
+      <View style = {{flex : 1}}>
+      </View>
+      <View style = {{flex : 1,  alignItems : "center", justifyContent : "center", }}>
+      <Button title="Pick an image from camera roll" onPress={pickImage} />
+      {imgtrue ?   <Image source={{ uri: uri }} style={{ width: 200, height: 200}} /> : null} 
+      <Button title="get Image" onPress={getImage} />
+      <Button title="get Position" onPress={getPosition} />
+      <Text> {city} 에 거주중 이십니다 </Text>
+      <Text style = {{fontSize : 20}}> 미쥬미쥬미쥬 님의 프로필</Text>
+      </View>
+      <View style = {{flex : 1}}>
 
-    <MyComponents/>
-
-
-    <View style={styles.profile}>
-
-<SafeAreaView>
-<TextInput value={email} onChangeText={setEmail} placeholder="useremail" style={styles.input}/>
-<TextInput value={password} onChangeText={setPassword} secureTextEntry={true} placeholder="password" style={styles.input}/>
- <Button title="signup" onPress={Submit}></Button> 
- <Button title="signin" onPress={Login}></Button> 
-
-</SafeAreaView>
-</View>
-
-    <Menu/>
-
-    <Questionbar/>
-    </View> 
-
-
-    : 
-    <View style={styles.container}>
-    <MyComponents/>
-    <MyProfile />
-    <Menu/>
-    <Questionbar/>
-    </View> 
-
-
+      </View>
+  </View>
   )
 }
  
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor : "white",
-
+    backgroundColor : "yellow",
   },
   top:{
     flex: 1.5,
